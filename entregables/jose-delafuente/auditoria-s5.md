@@ -35,9 +35,26 @@ Sí, con un patrón sistemático: **ninguno de los ~50 criterios de aceptación 
 estado HTTP esperado en los casos de error**. Describen el efecto visible (*"veo un mensaje
 comprensible"*) pero no el contrato de la API.
 
-Esta semana comprobé lo que cuesta: `GET /api/v1/users/active` devuelve **404 con `E_ROW_NOT_FOUND`**
-porque la ruta `/users/:id` captura `"active"` como si fuera un id. Ningún criterio redactado a mi manera
-distinguiría ese 404 de un 404 legítimo de ruta inexistente.
+Lo que hace este hallazgo interesante no es la ausencia, sino **por qué** se produjo. El criterio sí
+estaba en mi prompt, con un ejemplo literal de criterio correcto: `✅ Then el sistema responde con error
+401 y el mensaje "Email o contraseña incorrectos"`. Pero el non-goal 3 del mismo prompt decía *"No
+propongas arquitectura. Nada de endpoints, tablas, esquemas... El 'cómo' no es tuyo"*, y un código de
+estado cayó bajo esa sombra. El modelo no falló: **obedeció a la prohibición en lugar de al ejemplo**, y
+las dos instrucciones eran mías.
+
+Lo verifiqué reejecutando el prompt en dos contextos limpios, cambiando una sola línea para admitir los
+contratos observables: **con el prompt original, cero códigos de estado; con la línea desambiguada,
+siete**, sin que se colara ni un endpoint ni una decisión de implementación. La ambigüedad era mía, no un
+sesgo del modelo. Detalle secundario: la corrida limpia del original sí escribió el mensaje de error
+concreto, así que esa parte fue ruido de una ejecución; **lo reproducible es únicamente la ausencia del
+código de estado**.
+
+Y una matización honesta: este criterio lo traigo de trabajar en brownfield, donde el código existente es
+la fuente del contrato y basta con leerlo. En greenfield es discutible. Un 401 en un login es vocabulario
+compartido; elegir entre 400 y 422 para un fallo de validación sí es una decisión de diseño que no le
+corresponde al backlog. La regla útil no es "pon el código siempre", sino **distinguir el contrato
+estándar de la decisión de diseño**, y cuando sea lo segundo, declararlo como pregunta abierta en lugar
+de dejarlo en blanco.
 
 ### ¿Hay historias que hayan cambiado de naturaleza?
 
@@ -59,8 +76,16 @@ Dos diferencias reales, y el mentor acertó en la que importa.
 
 | | Mi backlog | El del mentor | Veredicto |
 |---|---|---|---|
-| **Épica de sincronización** | 4 historias descompuestas | **No la creó**: un solo spike (`FLOW-13`), épica pendiente hasta revisarlo | **Él.** El PRD §7 dice literalmente *"se recomienda un spike técnico antes de comprometer su decomposición en tareas"*. Leí ese riesgo y descompuse igual |
+| **Épica de sincronización** | 4 historias descompuestas | **No la creó**: un solo spike (`FLOW-13`), épica pendiente hasta revisarlo | **Él** — desarrollado bajo la tabla |
 | **Escala de estimación** | Fibonacci | T-shirt en su `AGENTS.md`, pero Fibonacci en su skill `estimate-story` | **Yo, por poco.** Su propia demo tiene las dos escalas conviviendo. Pero el problema es de la herramienta, no de la escala: Linear tiene un único campo `estimate`, así que el time-box del spike terminó expresado en story points con una nota aclaratoria en un comentario. Quien sume el tablero suma peras con manzanas |
+
+**Sobre la épica de sincronización.** El PRD §7 recomienda explícitamente *"un spike técnico antes de
+comprometer su decomposición en tareas"*. Mi backlog descompuso la épica en cuatro historias; el suyo se
+detuvo en el spike y dejó la épica sin crear. No fue una diferencia de información —el PRD era el mismo
+para los dos— sino de criterio sobre cuándo una recomendación de riesgo debe frenar la planificación. La
+densidad de supuestos lo confirma a posteriori: la épica 5 acumula 7 marcas de `(asumido)` en 4
+historias, la más alta del backlog. Descomponer no aportó certeza; repartió la incertidumbre en más
+sitios.
 
 Donde mi entrega fue mejor: el **listón explícito de criterios rechazables** en el prompt. Los criterios de
 `FLOW-1` de la demo dicen *"un mensaje comprensible"* y *"un error de validación claro"* — exactamente la
@@ -71,10 +96,10 @@ donde el criterio es cualitativo, que es justo el que se degrada solo.
 
 ### Ajuste 1 — Retirar la épica 5 y sustituirla por un spike de Google Calendar
 
-**Motivo:** el PRD §7 lo pide de forma explícita y lo pasé por alto. Descomponer una integración externa
-cuyo comportamiento no conocía produjo 7 supuestos estructurales en 4 historias. El mentor tomó la
-decisión correcta con la misma información. Un spike no es menos trabajo: es no fingir una certeza que no
-tengo.
+**Motivo:** el PRD §7 lo recomienda de forma explícita y el backlog descompuso igual. Descomponer una
+integración externa cuyo comportamiento aún no está explorado produjo 7 supuestos estructurales en 4
+historias — más superficie de planificación sobre la misma incertidumbre. Un spike no es menos trabajo:
+es no fingir una certeza que todavía no existe.
 
 ### Ajuste 2 — Añadir non-goals y Definition of Done explícitos a cada historia
 
@@ -83,11 +108,14 @@ non-goals + DoD*. Mi backlog razona el DoD una sola vez, en las notas de alcance
 y nunca baja a las historias. Con un agente implementando, lo que no está escrito como fuera de alcance
 se convierte en alcance.
 
-### Ajuste 3 — Incluir el código de estado HTTP esperado en todo criterio de error
+### Ajuste 3 — Desambiguar el non-goal de arquitectura para que no se lleve por delante los contratos de error
 
-**Motivo:** 0 de ~50 criterios lo hacen. Sin el contrato explícito, un 404 por ruta inexistente y un 404
-por registro no encontrado son indistinguibles para quien implementa — y esta semana comprobé en el repo
-base que esa confusión ya existe en código real.
+**Motivo:** el problema no era que faltara el criterio —estaba, con ejemplo—, sino que otra instrucción
+del mismo prompt lo anulaba. Lo confirmé con un A/B: cambiando esa única línea, los códigos de estado
+pasan de 0 a 7 sin efectos secundarios. El aprendizaje va más allá de este caso: **un prompt puede
+contener una instrucción y su neutralización a la vez**, y el output no lo señala — solo muestra la
+ausencia. `prompt.md` y `output.md` quedan como se entregaron: corregirlos ahora falsearía la relación
+entre ambos, y la contradicción es el hallazgo, no un defecto a parchear.
 
 ### Ajuste 4 — Declarar en cada historia qué documentación produce
 
