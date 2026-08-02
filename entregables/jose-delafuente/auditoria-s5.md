@@ -170,8 +170,10 @@ Sobre un clon limpio, con `npm ci` (respetando el lockfile versionado) y Node 24
   `--import=@poppinss/ts-exec`. Fix: `npm install @poppinss/ts-exec`.
 - **El requisito de Node no está aplicado.** El README pide Node 24 correctamente, pero
   `backend/package.json` no tiene campo `engines`, así que npm no lo verifica; con Node 22 se produce el
-  mismo error críptico, sin pista de que el problema es la versión. Y `@types/node` está fijado en
-  `^22.15.18`, contradiciendo su propio requisito.
+  mismo error críptico, sin pista de que el problema es la versión. Aparte, y como desalineación menor y
+  no como incumplimiento: `@types/node` está fijado en `^22.15.18`, un rango que no cubre las APIs
+  añadidas en Node 24. No impide ejecutar —los tipos no imponen runtime— pero conviene validarlo contra
+  las APIs realmente usadas antes de tocarlo.
 - **El README deja el repo sucio.** `npm run migration:run` genera `backend/.adonisjs/` y
   `backend/database/schema.ts` —este último con el aviso *"automatically generated / DO NOT EDIT
   manually"*— y ninguno de los dos está en `.gitignore`. Quien siga el README y haga `git add .` commitea
@@ -334,8 +336,20 @@ una fuente y dos derivados.
 
 # Anexo — Cómo reproducir los hallazgos de ejecución
 
-Entorno usado: Node 24.4.1, npm 11, Linux (WSL2). El repo se dejó en su estado original (`npm ci`) antes
-de cada comprobación.
+Entorno usado: Node 24.4.1, npm 11.4.2, Linux (WSL2).
+
+**Punto de partida (importante).** `npm ci` por sí solo **no** devuelve el repo a su estado original: no
+revierte un `package.json` modificado por el fix de `ts-exec`, ni borra los artefactos sin versionar que
+generan las migraciones. Lo ideal es un clon nuevo; si se reutiliza el mismo directorio, este es el reset
+completo:
+
+```bash
+# desde la raíz del repo
+git checkout -- backend/package.json backend/package-lock.json
+rm -rf backend/node_modules backend/tmp backend/.adonisjs \
+       backend/database/schema.ts backend/.env
+git status --short          # debe salir vacío
+```
 
 **Los dos fallos del arranque:**
 
@@ -346,24 +360,41 @@ cp .env.example .env
 node ace generate:key
 npm run migration:run        # falla: "Cannot open database because the directory does not exist"
 mkdir tmp                    # fix no documentado
-npm run migration:run        # ahora sí
+npm run migration:run        # ahora sí: "Migrated in 144 ms"
 npm run dev                  # falla: "Cannot find package '@poppinss/ts-exec'"
-npm install @poppinss/ts-exec   # segundo fix no documentado
+npm install @poppinss/ts-exec   # segundo fix no documentado (añade 14 paquetes)
 npm run dev                  # ahora arranca en :3333
 ```
 
-**La divergencia de la especificación:**
+**La divergencia de la especificación.** La base de datos está recién migrada y por tanto vacía, así que
+hay que crear la cuenta antes de poder autenticarse:
 
 ```bash
-TOKEN=$(curl -s -X POST localhost:3333/api/v1/account/login \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"...","password":"..."}' | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+B=http://localhost:3333/api/v1
 
-curl -s -w '\n%{http_code}\n' localhost:3333/api/v1/users/active -H "Authorization: Bearer $TOKEN"
-# → 404, con E_ROW_NOT_FOUND de Lucid (no un 404 de ruta inexistente)
+# 1. crear la cuenta (sin esto, el login no tiene contra qué autenticar)
+curl -s -X POST $B/account/register -H 'Content-Type: application/json' \
+  -d '{"fullName":"Audit User","email":"audit@example.com","password":"secret1234"}'
+# → 201
 
-curl -s -w '\n%{http_code}\n' localhost:3333/api/v1/users -H "Authorization: Bearer $TOKEN"
-# → 200, y lastSeenAt viene poblado tras el login
+# 2. autenticarse y quedarse con el token
+TOKEN=$(curl -s -X POST $B/account/login -H 'Content-Type: application/json' \
+  -d '{"email":"audit@example.com","password":"secret1234"}' \
+  | python3 -c "import sys,json;print(json.load(sys.stdin)['token'])")
+
+# 3. el endpoint que la spec promete
+curl -s -w '\nHTTP %{http_code}\n' $B/users/active -H "Authorization: Bearer $TOKEN"
+# → HTTP 404, con "name":"E_ROW_NOT_FOUND" de Lucid
+#   No es un 404 de ruta inexistente: /users/:id captura "active" como si fuera un id.
+
+# 4. contraste — el endpoint que sí existe
+curl -s -w '\nHTTP %{http_code}\n' $B/users -H "Authorization: Bearer $TOKEN"
+# → HTTP 200, y lastSeenAt viene poblado tras el login,
+#   lo que confirma que el dato que la spec necesita sí existe.
+
+# 5. el tercer escenario de la spec, que "pasa" por accidente
+curl -s -o /dev/null -w 'HTTP %{http_code}\n' $B/users/active
+# → HTTP 401, pero por el middleware auth del grupo, no porque el endpoint exista.
 ```
 
 **Los conteos de docstrings:** 31 archivos `.ts`/`.tsx` propios (excluyendo `node_modules`,
