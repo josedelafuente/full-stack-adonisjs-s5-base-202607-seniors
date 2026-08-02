@@ -87,10 +87,10 @@ densidad de supuestos lo confirma a posteriori: la épica 5 acumula 7 marcas de 
 historias, la más alta del backlog. Descomponer no aportó certeza; repartió la incertidumbre en más
 sitios.
 
-Donde mi entrega fue mejor: el **listón explícito de criterios rechazables** en el prompt. Los criterios de
-`FLOW-1` de la demo dicen *"un mensaje comprensible"* y *"un error de validación claro"* — exactamente la
-familia que mi prompt rechaza con ejemplos. La demo aprieta donde hay una magnitud que medir y afloja
-donde el criterio es cualitativo, que es justo el que se degrada solo.
+Donde mi entrega superó a la de referencia: el **listón explícito de criterios rechazables** en el
+prompt. Los criterios de `FLOW-1` de la demo dicen *"un mensaje comprensible"* y *"un error de validación
+claro"* — exactamente la familia que mi prompt rechaza con ejemplos. La demo aprieta donde hay una
+magnitud que medir y afloja donde el criterio es cualitativo, que es justo el que se degrada solo.
 
 ## Paso 3 — Los cuatro ajustes
 
