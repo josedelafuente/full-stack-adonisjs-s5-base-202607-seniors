@@ -292,10 +292,11 @@ es la que mejor resiste la verificación contra el código.
 
 **3. El PRD funciona como fuente de verdad de producto, y lo hace bien.**
 139 líneas con *out of scope* explícito (§1, cuatro exclusiones nombradas), requisitos no funcionales
-cuantificados, riesgos declarados **con recomendación accionable** —§7 dice *"se recomienda un spike
-técnico antes de comprometer su decomposición en tareas"*, que es precisamente el consejo que ignoré en la
-S4— y una nota de producto que acota el alcance de la sincronización. Es la razón de que la Parte A no
-tuviera scope creep. **No rehacerlo**: el material de planificación ya tiene su fuente.
+cuantificados, y riesgos que no se limitan a señalar el peligro sino que dicen qué hacer con él: §7
+declara la sincronización como el mayor riesgo técnico del MVP y acto seguido recomienda *"un spike
+técnico antes de comprometer su decomposición en tareas"*. Añade además una nota de producto que acota
+la dirección de la sincronización para el MVP. Es el documento que permite auditar sin ambigüedad si un
+backlog derivado se salió del alcance. **No rehacerlo**: el material de planificación ya tiene su fuente.
 
 ---
 
