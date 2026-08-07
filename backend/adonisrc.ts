@@ -22,6 +22,7 @@ export default defineConfig({
     () => import('@adonisjs/cors/cors_provider'),
     () => import('@adonisjs/lucid/database_provider'),
     () => import('@adonisjs/auth/auth_provider'),
+    () => import('@foadonis/openapi/openapi_provider'),
   ],
 
   preloads: [() => import('#start/routes'), () => import('#start/kernel')],
