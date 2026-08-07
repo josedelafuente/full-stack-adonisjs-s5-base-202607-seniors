@@ -1,4 +1,5 @@
 import router from '@adonisjs/core/services/router'
+import openapi from '@foadonis/openapi/services/main'
 import { middleware } from '#start/kernel'
 
 const NewAccountsController = () => import('#controllers/new_accounts_controller')
@@ -10,6 +11,18 @@ const UsersController = () => import('#controllers/users_controller')
 router.get('/', async () => {
   return { app: 'full-stack-adonisjs-master', status: 'running' }
 })
+
+/*
+|--------------------------------------------------------------------------
+| Documentación de la API
+|--------------------------------------------------------------------------
+| Sirve el contrato y su interfaz navegable, generados desde los decoradores
+| de los controllers: /api (Scalar), /api.json y /api.yaml.
+|
+| El contrato no se escribe a mano: sale del código, así que no puede quedar
+| desincronizado. Sin autenticación a propósito — el proyecto corre en local.
+*/
+openapi.registerRoutes()
 
 /*
 |--------------------------------------------------------------------------
